@@ -239,6 +239,13 @@ textarea.note::placeholder{color:var(--faint)}
 
 /* ---------- Settings ---------- */
 .set-sec{margin-top:14px}
+.set-h{margin:26px 6px 0;font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.08em}
+.sync-form{padding:14px 16px 12px;display:flex;flex-direction:column;gap:12px}
+.set-lab{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);letter-spacing:.04em}
+.set-input{width:100%;min-height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:rgba(4,24,48,.5);color:var(--text);font:inherit;font-size:16px}
+.set-go{min-height:48px;border-radius:24px;background:#fff;color:#0b2f57;font-weight:600;font-size:15px;letter-spacing:.08em}
+.set-go[disabled]{opacity:.6}
+.sync-msg{margin:0;font-size:12px;color:var(--danger);min-height:16px}
 .set-btn{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:54px;padding:0 18px;border-top:1px solid var(--line-soft);font-size:15px;text-align:left}
 .set-btn:first-child{border-top:0}
 .set-note{font-size:12px;color:var(--muted);line-height:1.8;margin:12px 6px 0}
@@ -287,7 +294,7 @@ textarea.note::placeholder{color:var(--faint)}
   <section class="view active" id="v-home">
     <header class="hero">
       <button class="version" id="btnSettings" aria-label="設定">
-        <span id="verLabel"></span>
+        <span id="verLabel"></span><span id="syncMark"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
       </button>
       <div class="brand">
@@ -417,11 +424,15 @@ textarea.note::placeholder{color:var(--faint)}
         <h1 class="ja">設定</h1>
         <span style="width:44px"></span>
       </div>
-      <div class="list set-sec">
+      <h2 class="set-h" style="margin-top:8px">スプレッドシート連携</h2>
+      <div class="list set-sec" id="syncBox"></div>
+      <p class="set-note">連携すると、記録はこの端末とGoogleスプレッドシートの両方に保存されます。暗証番号はこの端末の中だけに保存されます。</p>
+      <h2 class="set-h">バックアップ</h2>
+      <div class="list set-sec" id="backupBox">
         <button class="set-btn" id="btnExport"><span>バックアップを保存</span><span style="color:var(--muted);font-size:12px">JSON</span></button>
         <button class="set-btn" id="btnImport"><span>バックアップを読み込む</span><span style="color:var(--muted);font-size:12px">JSON</span></button>
       </div>
-      <p class="set-note">記録はこの端末のブラウザ内にだけ保存されます。機種変更やブラウザのデータ消去に備えて、ときどき「バックアップを保存」してください。<br>読み込み時は内容を確認してから反映します。</p>
+      <p class="set-note">ときどき「バックアップを保存」しておくと安心です。読み込み時は内容を確認してから反映します。</p>
       <p class="set-note" id="storageInfo"></p>
       <input type="file" id="fileIn" accept="application/json,.json" class="sr" tabindex="-1">
       <p class="set-ver" id="verLabel2"></p>
@@ -435,7 +446,7 @@ textarea.note::placeholder{color:var(--faint)}
 <script>
 "use strict";
 /* ================= 設定 ================= */
-const VERSION = "2.0";
+const VERSION = "2.2";
 const SLEEP_GOAL = 7; // 睡眠の目標時間（グラフに横線を引く）
 const DEMO = false; // デモ版だけ true（サンプル記録入り・別の保存場所を使う）
 const SCHEMA_VERSION = 1;
@@ -1082,7 +1093,7 @@ async function dayMenu() {
   if (v === "del") {
     const d = parseYmd(ds);
     const ok = await confirmDlg({ title: `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日の記録を削除しますか？`, body: "Private / Work / Sleep / Notes のこの日の記録が削除されます。この操作は取り消せません。", ok: "削除する", danger: true });
-    if (ok) { DB.del(ds); go("home", { reset: true }); toast("削除しました"); }
+    if (ok) { DB.del(ds); Sync.enqueue({ action: "del", date: ds }); go("home", { reset: true }); toast("削除しました"); }
   }
 }
 
@@ -1188,6 +1199,7 @@ function entrySave() {
   });
   if (!validRecord(rec)) { toast("保存できませんでした"); return; }
   const ok = DB.put(rec);
+  Sync.enqueue({ action: "put", record: rec });
   const wasEdit = E.isEdit, from = E.from, date = E.date;
   E = null;
   nav.stack.pop(); // entry を閉じる
@@ -1201,6 +1213,7 @@ $$("#steps button").forEach(b => b.addEventListener("click", () => { if (E && E.
 
 /* ================= 設定・バックアップ ================= */
 function renderSettings() {
+  renderSyncBox();
   $("#storageInfo").textContent = storageOK ? `保存されている記録：${DB.map.size}日分` : "この環境ではブラウザ保存が使えないため、再読み込みすると記録が消えます。";
 }
 $("#btnExport").addEventListener("click", () => {
@@ -1229,6 +1242,7 @@ $("#fileIn").addEventListener("change", async e => {
   const ok = await confirmDlg({ title: `${m.records.length}日分の記録を読み込みますか？`, body: `今この端末にある記録（${DB.map.size}日分）は、バックアップの内容に置き換わります。`, ok: "読み込む" });
   if (!ok) return;
   DB.replaceAll(m.records.map(normRecord));
+  if (Sync.enabled()) { Sync.outbox = [{ action: "replace", records: DB.all() }]; Sync.saveOutbox(); Sync.flush(); }
   renderAll(); renderSettings(); toast("読み込みました");
 });
 
@@ -1259,6 +1273,127 @@ let rzT; window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setT
 let lastDay = todayStr();
 document.addEventListener("visibilitychange", () => { if (!document.hidden && todayStr() !== lastDay) { lastDay = todayStr(); renderQuote(); renderAll(); } });
 
+/* ================= スプレッドシート連携 =================
+   記録はまずこの端末に保存し、裏でスプレッドシート（GAS）へ送る。
+   送れなかった分は「送信待ち」に置いておき、つながったら自動で送る。
+   暗証番号はこの端末の中だけに保存（GitHubのファイルには書かない）。 */
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzTPesHgOaKgOTQO0chN4UA8qDAPxaIcKwew47Gy1A7TOoH5QJDNhZMJtIaLuuUlL3APQ/exec"; // スプレッドシート側（GAS）のURL。空なら設定画面で貼り付け
+const SYNC_KEY = "nagi.sync", OUTBOX_KEY = "nagi.outbox";
+const Sync = {
+  cfg: { url: "", pin: "", lastSync: "" },
+  outbox: [],
+  state: "idle", // idle | syncing | ok | offline | pin
+  busy: false,
+  load() {
+    try { const c = JSON.parse(lsGet(SYNC_KEY) || "null"); if (c && typeof c === "object") this.cfg = { url: c.url || "", pin: c.pin || "", lastSync: c.lastSync || "" }; } catch (e) { }
+    if (!this.cfg.url && GAS_URL && !GAS_URL.startsWith("__")) this.cfg.url = GAS_URL;
+    try { const o = JSON.parse(lsGet(OUTBOX_KEY) || "[]"); if (Array.isArray(o)) this.outbox = o; } catch (e) { }
+  },
+  saveCfg() { lsSet(SYNC_KEY, JSON.stringify(this.cfg)); },
+  saveOutbox() { lsSet(OUTBOX_KEY, JSON.stringify(this.outbox)); },
+  enabled() { return !DEMO && !!this.cfg.url && !!this.cfg.pin; },
+  async api(body, cfg = this.cfg) {
+    const ac = new AbortController(); const tm = setTimeout(() => ac.abort(), 20000);
+    try {
+      const r = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ ...body, pin: cfg.pin }), redirect: "follow", signal: ac.signal });
+      const j = await r.json();
+      if (!j || !j.ok) { const e = new Error(j && j.error || "bad"); e.code = j && j.error || "bad"; throw e; }
+      return j;
+    } catch (e) { if (!e.code) e.code = "offline"; throw e; }
+    finally { clearTimeout(tm); }
+  },
+  enqueue(op) {
+    if (!this.enabled()) return;
+    this.outbox.push(op); this.saveOutbox(); updateSyncMark();
+    this.flush();
+  },
+  applyServer(records) {
+    const recs = (records || []).filter(validRecord).map(normRecord);
+    const before = JSON.stringify(DB.all());
+    DB.map = new Map(recs.map(r => [r.date, r]));
+    if (JSON.stringify(DB.all()) !== before) { DB.persist(); if (!E) renderAll(); }
+  },
+  async flush() {
+    if (!this.enabled() || this.busy) return;
+    this.busy = true; this.state = "syncing"; updateSyncMark();
+    try {
+      let last = null;
+      while (this.outbox.length) { last = await this.api(this.outbox[0]); this.outbox.shift(); this.saveOutbox(); }
+      if (!last) last = await this.api({ action: "list" });
+      if (!this.outbox.length) this.applyServer(last.records); // 送信待ちが空のときだけ、スプレッドシートの内容に合わせる
+      this.cfg.lastSync = new Date().toISOString(); this.saveCfg();
+      this.state = "ok";
+    } catch (e) {
+      this.state = e.code === "pin" ? "pin" : "offline";
+    } finally {
+      this.busy = false; updateSyncMark();
+      if ($("#v-settings").classList.contains("active")) renderSettings();
+    }
+  },
+  async connect(url, pin) {
+    const cfg = { url: url.trim(), pin: pin.trim(), lastSync: "" };
+    await this.api({ action: "list" }, cfg); // 暗証番号の確認
+    const j = await this.api({ action: "merge", records: DB.all() }, cfg); // 今ある記録をまとめて送る（新しい方を残す）
+    this.cfg = cfg; this.outbox = []; this.saveOutbox();
+    this.applyServer(j.records);
+    this.cfg.lastSync = new Date().toISOString(); this.saveCfg();
+    this.state = "ok"; updateSyncMark();
+  },
+  disconnect() {
+    this.cfg = { url: this.cfg.url, pin: "", lastSync: "" }; this.saveCfg();
+    this.outbox = []; this.saveOutbox(); this.state = "idle"; updateSyncMark();
+  }
+};
+function updateSyncMark() {
+  const m = $("#syncMark"); if (!m) return;
+  let t = "";
+  if (Sync.enabled()) {
+    if (Sync.state === "pin") t = "・要確認";
+    else if (Sync.outbox.length && Sync.state !== "syncing") t = "・未送信";
+  }
+  m.textContent = t;
+}
+let lastFlush = 0;
+function autoFlush() { if (Sync.enabled() && Date.now() - lastFlush > 15000) { lastFlush = Date.now(); Sync.flush(); } }
+window.addEventListener("online", () => { lastFlush = 0; autoFlush(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) autoFlush(); });
+
+function renderSyncBox() {
+  const box = $("#syncBox"); if (!box) return;
+  if (DEMO) { box.innerHTML = `<p class="set-note" style="margin:14px 16px">デモ版では使えません。</p>`; return; }
+  if (!Sync.enabled()) {
+    const needUrl = !(GAS_URL && !GAS_URL.startsWith("__"));
+    box.innerHTML = `<div class="sync-form">
+      ${needUrl ? `<label class="set-lab">連携先のURL<input class="set-input" id="syncUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(Sync.cfg.url)}"></label>` : ""}
+      <label class="set-lab">暗証番号<input class="set-input" id="syncPin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••"></label>
+      <button class="set-go" id="syncConnect">連携する</button>
+      <p class="sync-msg" id="syncMsg"></p></div>`;
+    $("#syncConnect").addEventListener("click", async () => {
+      const url = needUrl ? $("#syncUrl").value : GAS_URL, pin = $("#syncPin").value;
+      const msg = $("#syncMsg");
+      if (!/^https:\/\/script\.google(usercontent)?\.com\//.test((url || "").trim())) { msg.textContent = "URLを確認してください（https://script.google.com/… で始まるもの）"; return; }
+      if (!pin.trim()) { msg.textContent = "暗証番号を入れてください"; return; }
+      const btn = $("#syncConnect"); btn.disabled = true; btn.textContent = "確認中…"; msg.textContent = "";
+      try { await Sync.connect(url, pin); toast("連携しました"); renderSettings(); }
+      catch (e) { msg.textContent = e.code === "pin" ? "暗証番号が違います" : "つながりませんでした。URLと電波を確認してください"; btn.disabled = false; btn.textContent = "連携する"; }
+    });
+    return;
+  }
+  const t = Sync.cfg.lastSync ? new Date(Sync.cfg.lastSync) : null;
+  const st = Sync.state === "pin" ? "暗証番号が変わったようです。いったん解除して入れ直してください"
+    : Sync.state === "syncing" ? "同期中…"
+    : Sync.outbox.length ? `未送信 ${Sync.outbox.length}件（つながったら自動で送ります）`
+    : t ? `最終同期 ${t.getMonth() + 1}/${t.getDate()} ${pad2(t.getHours())}:${pad2(t.getMinutes())}` : "";
+  box.innerHTML = `<div class="set-btn" style="cursor:default"><span>連携中</span><span style="color:var(--muted);font-size:12px">${esc(st)}</span></div>
+    <button class="set-btn" id="syncNow"><span>今すぐ同期</span></button>
+    <button class="set-btn" id="syncOff"><span style="color:var(--danger)">この端末の連携を解除</span></button>`;
+  $("#syncNow").addEventListener("click", () => { lastFlush = Date.now(); Sync.flush(); renderSettings(); });
+  $("#syncOff").addEventListener("click", async () => {
+    const ok = await confirmDlg({ title: "この端末の連携を解除しますか？", body: "スプレッドシートの記録は消えません。この端末の記録もそのまま残ります。", ok: "解除する" });
+    if (ok) { Sync.disconnect(); renderSettings(); toast("解除しました"); }
+  });
+}
+
 /* ================= デモ用サンプル（DEMO=true のときだけ使用） ================= */
 function seedDemo() {
   let s = 20261002; const rnd = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -1285,6 +1420,7 @@ $("#verLabel2").textContent = "NAGI  v" + VERSION;
 $$("[data-back]").forEach(b => b.innerHTML = ICON.back);
 DB.load(); loadPrefs();
 if (DEMO && !DB.map.size && lsGet(STORE_KEY) === null) seedDemo();
+Sync.load(); updateSyncMark(); if (Sync.enabled()) { lastFlush = Date.now(); Sync.flush(); }
 renderQuote(); renderHome();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => renderAll());
 </script>
